@@ -9,7 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "next": "15.2.2",
+    "next": "15.5.12",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "recharts": "^2.15.1"
