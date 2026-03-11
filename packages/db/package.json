@@ -1,0 +1,28 @@
+{
+  "name": "@meteria/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma db push && tsx src/post-migrate.ts",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma db push --force-reset && tsx src/post-migrate.ts && tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.5.0",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "prisma": "^6.5.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

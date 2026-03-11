@@ -1,0 +1,19 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: meteria-gateway
+    restart: unless-stopped
+    volumes:
+      - ./config.example.yaml:/gateway/config.yaml:ro
+      - gateway_data:/data
+      - gateway_drop:/data/drop
+      - gateway_processed:/data/processed
+    ports:
+      - "8081:8081"
+
+volumes:
+  gateway_data:
+  gateway_drop:
+  gateway_processed:

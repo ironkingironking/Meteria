@@ -1,0 +1,601 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  manager
+  viewer
+}
+
+enum MeterType {
+  electricity
+  water_cold
+  water_hot
+  heat
+  gas
+}
+
+enum MeterDirection {
+  consumption
+  production
+  bidirectional
+}
+
+enum ReadingMode {
+  cumulative
+  interval
+}
+
+enum ReadingQualityFlag {
+  ok
+  estimated
+  suspect
+  missing
+}
+
+enum ReadingSource {
+  api
+  manual
+  import
+  gateway
+}
+
+enum GatewayStatus {
+  online
+  offline
+  unknown
+}
+
+enum PricingModel {
+  flat_per_unit
+  tiered
+  monthly_fixed_plus_usage
+}
+
+enum BillingPeriodStatus {
+  draft
+  locked
+  finalized
+}
+
+enum BillingPeriodType {
+  monthly
+  quarterly
+  annual
+  custom
+}
+
+enum InvoiceDraftStatus {
+  draft
+  review_needed
+  ready
+}
+
+enum TaxHandlingMode {
+  exclusive
+  inclusive
+  exempt
+  reverse_charge
+}
+
+enum AllocationMethod {
+  area_sqm
+  unit_count
+  occupancy
+  custom_share
+  meter_weighted
+}
+
+enum OperatingCostComponentType {
+  fixed
+  variable
+}
+
+enum ReadingCorrectionType {
+  manual_correction
+  estimated_fill
+  replacement_adjustment
+  import_reconciliation
+}
+
+enum ReadingLifecycleStatus {
+  original
+  estimated
+  corrected
+  superseded
+}
+
+enum ApiKeyStatus {
+  active
+  revoked
+}
+
+model Tenant {
+  id             String          @id @default(uuid()) @db.Uuid
+  name           String
+  slug           String          @unique
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  users          User[]
+  buildings      Building[]
+  meters         Meter[]
+  gateways       Gateway[]
+  readings       MeterReading[]
+  tariffs        Tariff[]
+  billingPeriods BillingPeriod[]
+  invoiceDrafts  InvoiceDraft[]
+  auditLogs      AuditLog[]
+  apiKeys        ApiKey[]
+  allocationKeys TenantAllocationKey[]
+  allocationKeyEntries TenantAllocationKeyEntry[]
+  operatingCostComponents OperatingCostComponent[]
+  taxProfiles TaxProfile[]
+  meterReplacementEvents MeterReplacementEvent[]
+  readingCorrectionEvents ReadingCorrectionEvent[]
+  breakdownSnapshots CalculationBreakdownSnapshot[]
+  billingChangeLogs BillingChangeLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  email        String
+  passwordHash String    @map("password_hash")
+  role         UserRole
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meterReplacementEvents MeterReplacementEvent[] @relation("MeterReplacementCreatedBy")
+  readingCorrectionEvents ReadingCorrectionEvent[] @relation("ReadingCorrectionCreatedBy")
+  billingChangeLogs BillingChangeLog[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model Building {
+  id                String          @id @default(uuid()) @db.Uuid
+  tenantId          String          @map("tenant_id") @db.Uuid
+  name              String
+  externalReference String?         @map("external_reference")
+  addressLine1      String          @map("address_line_1")
+  postalCode        String          @map("postal_code")
+  city              String
+  country           String
+  timezone          String
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  units          Unit[]
+  meters         Meter[]
+  gateways       Gateway[]
+  billingPeriods BillingPeriod[]
+  invoiceDrafts  InvoiceDraft[]
+  allocationKeys TenantAllocationKey[]
+  operatingCostComponents OperatingCostComponent[]
+  meterReplacementEvents MeterReplacementEvent[]
+
+  @@index([tenantId])
+  @@map("buildings")
+}
+
+model Unit {
+  id         String    @id @default(uuid()) @db.Uuid
+  buildingId String    @map("building_id") @db.Uuid
+  name       String
+  unitNumber String    @map("unit_number")
+  floor      String?
+  areaSqm    Decimal?  @map("area_sqm") @db.Decimal(12, 2)
+  usageType  String    @map("usage_type")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  building      Building       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  meters        Meter[]
+  invoiceDrafts InvoiceDraft[]
+  allocationKeyEntries TenantAllocationKeyEntry[]
+
+  @@index([buildingId])
+  @@map("units")
+}
+
+model Meter {
+  id             String         @id @default(uuid()) @db.Uuid
+  tenantId       String         @map("tenant_id") @db.Uuid
+  buildingId     String         @map("building_id") @db.Uuid
+  unitId         String?        @map("unit_id") @db.Uuid
+  meterNumber    String         @map("meter_number")
+  externalId     String         @map("external_id")
+  name           String
+  type           MeterType
+  medium         String
+  unit           String
+  direction      MeterDirection
+  readingMode    ReadingMode    @map("reading_mode")
+  multiplier     Decimal        @default(1) @db.Decimal(12, 6)
+  installedAt    DateTime       @map("installed_at") @db.Timestamptz(6)
+  decommissionedAt DateTime?    @map("decommissioned_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building Building       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  assignedUnit Unit?      @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  readings MeterReading[]
+  replacementEventsAsOld MeterReplacementEvent[] @relation("OldMeterReplacements")
+  replacementEventsAsNew MeterReplacementEvent[] @relation("NewMeterReplacements")
+  correctionEvents ReadingCorrectionEvent[]
+
+  @@index([tenantId, buildingId])
+  @@unique([tenantId, externalId])
+  @@map("meters")
+}
+
+model Gateway {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  buildingId      String?       @map("building_id") @db.Uuid
+  name            String
+  serialNumber    String        @map("serial_number")
+  authTokenHash   String        @map("auth_token_hash")
+  status          GatewayStatus @default(unknown)
+  lastSeenAt      DateTime?     @map("last_seen_at") @db.Timestamptz(6)
+  firmwareVersion String?       @map("firmware_version")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building Building?      @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  readings MeterReading[]
+
+  @@unique([tenantId, serialNumber])
+  @@index([tenantId, buildingId])
+  @@map("gateways")
+}
+
+model MeterReading {
+  id          String             @id @default(uuid()) @db.Uuid
+  tenantId    String             @map("tenant_id") @db.Uuid
+  meterId     String             @map("meter_id") @db.Uuid
+  gatewayId   String?            @map("gateway_id") @db.Uuid
+  timestamp   DateTime           @db.Timestamptz(6)
+  value       Decimal            @db.Decimal(18, 6)
+  rawValue    String?            @map("raw_value")
+  unit        String
+  qualityFlag ReadingQualityFlag @default(ok) @map("quality_flag")
+  source      ReadingSource
+  lifecycleStatus ReadingLifecycleStatus @default(original) @map("lifecycle_status")
+  supersedesReadingId String? @map("supersedes_reading_id") @db.Uuid
+  estimationMethod String? @map("estimation_method")
+  billingNote String? @map("billing_note")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meter   Meter    @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  gateway Gateway? @relation(fields: [gatewayId], references: [id], onDelete: SetNull)
+  supersedesReading MeterReading? @relation("ReadingSupersession", fields: [supersedesReadingId], references: [id], onDelete: SetNull)
+  supersededByReadings MeterReading[] @relation("ReadingSupersession")
+  correctionEventsAsOriginal ReadingCorrectionEvent[] @relation("OriginalReadingCorrections")
+  correctionEventsAsCorrected ReadingCorrectionEvent[] @relation("CorrectedReadingCorrections")
+
+  @@index([tenantId, timestamp(sort: Desc)])
+  @@index([meterId, timestamp(sort: Desc)])
+  @@index([tenantId, lifecycleStatus])
+  @@index([supersedesReadingId])
+  @@unique([meterId, timestamp, value])
+  @@map("meter_readings")
+}
+
+model Tariff {
+  id             String        @id @default(uuid()) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  name           String
+  meterType      MeterType     @map("meter_type")
+  validFrom      DateTime      @map("valid_from") @db.Timestamptz(6)
+  validTo        DateTime?     @map("valid_to") @db.Timestamptz(6)
+  pricingModel   PricingModel  @map("pricing_model")
+  pricePerUnit   Decimal?      @map("price_per_unit") @db.Decimal(18, 6)
+  monthlyBaseFee Decimal?      @map("monthly_base_fee") @db.Decimal(18, 6)
+  currency       String
+  taxProfileId   String?       @map("tax_profile_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  taxProfile TaxProfile? @relation(fields: [taxProfileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, meterType])
+  @@index([tenantId, taxProfileId])
+  @@map("tariffs")
+}
+
+model BillingPeriod {
+  id          String            @id @default(uuid()) @db.Uuid
+  tenantId    String            @map("tenant_id") @db.Uuid
+  buildingId  String            @map("building_id") @db.Uuid
+  name        String
+  periodStart DateTime          @map("period_start") @db.Timestamptz(6)
+  periodEnd   DateTime          @map("period_end") @db.Timestamptz(6)
+  periodType  BillingPeriodType @default(custom) @map("period_type")
+  fiscalYear  Int?              @map("fiscal_year")
+  status      BillingPeriodStatus @default(draft)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building     Building       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  invoiceDraft InvoiceDraft[]
+  breakdownSnapshots CalculationBreakdownSnapshot[]
+
+  @@index([tenantId, buildingId])
+  @@index([tenantId, periodType, fiscalYear])
+  @@map("billing_periods")
+}
+
+model InvoiceDraft {
+  id                 String            @id @default(uuid()) @db.Uuid
+  tenantId           String            @map("tenant_id") @db.Uuid
+  buildingId         String            @map("building_id") @db.Uuid
+  unitId             String?           @map("unit_id") @db.Uuid
+  billingPeriodId    String            @map("billing_period_id") @db.Uuid
+  tariffId           String?           @map("tariff_id") @db.Uuid
+  taxProfileId       String?           @map("tax_profile_id") @db.Uuid
+  totalConsumption   Decimal           @map("total_consumption") @db.Decimal(18, 6)
+  subtotal           Decimal           @db.Decimal(18, 6)
+  taxRate            Decimal?          @map("tax_rate") @db.Decimal(8, 4)
+  taxHandlingMode    TaxHandlingMode?  @map("tax_handling_mode")
+  taxAmount          Decimal?          @map("tax_amount") @db.Decimal(18, 6)
+  totalAmount        Decimal           @map("total_amount") @db.Decimal(18, 6)
+  currency           String
+  status             InvoiceDraftStatus @default(draft)
+  warningFlags       String[]          @default([]) @map("warning_flags")
+  breakdownJson      Json?             @map("breakdown_json")
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building      Building      @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  unit          Unit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  billingPeriod BillingPeriod @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
+  taxProfile    TaxProfile?   @relation(fields: [taxProfileId], references: [id], onDelete: SetNull)
+  breakdownSnapshots CalculationBreakdownSnapshot[]
+
+  @@index([tenantId, buildingId])
+  @@index([tenantId, billingPeriodId])
+  @@index([tenantId, taxProfileId])
+  @@map("invoice_drafts")
+}
+
+model TaxProfile {
+  id              String          @id @default(uuid()) @db.Uuid
+  tenantId        String          @map("tenant_id") @db.Uuid
+  name            String
+  countryCode     String          @map("country_code")
+  taxHandlingMode TaxHandlingMode @default(exclusive) @map("tax_handling_mode")
+  vatRate         Decimal?        @map("vat_rate") @db.Decimal(8, 4)
+  validFrom       DateTime        @map("valid_from") @db.Timestamptz(6)
+  validTo         DateTime?       @map("valid_to") @db.Timestamptz(6)
+  isDefault       Boolean         @default(false) @map("is_default")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tariffs Tariff[]
+  operatingCostComponents OperatingCostComponent[]
+  invoiceDrafts InvoiceDraft[]
+
+  @@index([tenantId, countryCode, validFrom])
+  @@index([tenantId, isDefault])
+  @@map("tax_profiles")
+}
+
+model TenantAllocationKey {
+  id        String           @id @default(uuid()) @db.Uuid
+  tenantId  String           @map("tenant_id") @db.Uuid
+  buildingId String?         @map("building_id") @db.Uuid
+  name      String
+  method    AllocationMethod
+  isDefault Boolean          @default(false) @map("is_default")
+  validFrom DateTime         @map("valid_from") @db.Timestamptz(6)
+  validTo   DateTime?        @map("valid_to") @db.Timestamptz(6)
+  notes     String?
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  entries TenantAllocationKeyEntry[]
+  operatingCostComponents OperatingCostComponent[]
+
+  @@index([tenantId, buildingId, validFrom])
+  @@index([tenantId, isDefault])
+  @@map("tenant_allocation_keys")
+}
+
+model TenantAllocationKeyEntry {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  allocationKeyId String    @map("allocation_key_id") @db.Uuid
+  unitId          String?   @map("unit_id") @db.Uuid
+  label           String?
+  shareValue      Decimal   @map("share_value") @db.Decimal(18, 6)
+  basisValue      Decimal?  @map("basis_value") @db.Decimal(18, 6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  allocationKey TenantAllocationKey @relation(fields: [allocationKeyId], references: [id], onDelete: Cascade)
+  unit Unit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, allocationKeyId])
+  @@index([allocationKeyId, unitId])
+  @@map("tenant_allocation_key_entries")
+}
+
+model OperatingCostComponent {
+  id               String                     @id @default(uuid()) @db.Uuid
+  tenantId         String                     @map("tenant_id") @db.Uuid
+  buildingId       String?                    @map("building_id") @db.Uuid
+  name             String
+  code             String?
+  componentType    OperatingCostComponentType @map("component_type")
+  meterType        MeterType?                 @map("meter_type")
+  fixedAmount      Decimal?                   @map("fixed_amount") @db.Decimal(18, 6)
+  variableRate     Decimal?                   @map("variable_rate") @db.Decimal(18, 6)
+  unit             String?
+  currency         String
+  allocationKeyId  String?                    @map("allocation_key_id") @db.Uuid
+  taxProfileId     String?                    @map("tax_profile_id") @db.Uuid
+  validFrom        DateTime                   @map("valid_from") @db.Timestamptz(6)
+  validTo          DateTime?                  @map("valid_to") @db.Timestamptz(6)
+  isActive         Boolean                    @default(true) @map("is_active")
+  formulaTemplate  String?                    @map("formula_template")
+  createdAt        DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building Building? @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  allocationKey TenantAllocationKey? @relation(fields: [allocationKeyId], references: [id], onDelete: SetNull)
+  taxProfile TaxProfile? @relation(fields: [taxProfileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, buildingId, componentType])
+  @@index([tenantId, allocationKeyId])
+  @@index([tenantId, taxProfileId])
+  @@map("operating_cost_components")
+}
+
+model MeterReplacementEvent {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  buildingId        String   @map("building_id") @db.Uuid
+  oldMeterId        String   @map("old_meter_id") @db.Uuid
+  newMeterId        String   @map("new_meter_id") @db.Uuid
+  replacedAt        DateTime @map("replaced_at") @db.Timestamptz(6)
+  finalReadingOld   Decimal? @map("final_reading_old") @db.Decimal(18, 6)
+  initialReadingNew Decimal? @map("initial_reading_new") @db.Decimal(18, 6)
+  reason            String
+  notes             String?
+  createdByUserId   String?  @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  building Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  oldMeter Meter @relation("OldMeterReplacements", fields: [oldMeterId], references: [id], onDelete: Restrict)
+  newMeter Meter @relation("NewMeterReplacements", fields: [newMeterId], references: [id], onDelete: Restrict)
+  createdBy User? @relation("MeterReplacementCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, buildingId, replacedAt(sort: Desc)])
+  @@index([oldMeterId])
+  @@index([newMeterId])
+  @@map("meter_replacement_events")
+}
+
+model ReadingCorrectionEvent {
+  id                String               @id @default(uuid()) @db.Uuid
+  tenantId          String               @map("tenant_id") @db.Uuid
+  meterId           String               @map("meter_id") @db.Uuid
+  originalReadingId String               @map("original_reading_id") @db.Uuid
+  correctedReadingId String              @map("corrected_reading_id") @db.Uuid
+  correctionType    ReadingCorrectionType @map("correction_type")
+  reason            String
+  detailsJson       Json?                @map("details_json")
+  createdByUserId   String?              @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  originalReading MeterReading @relation("OriginalReadingCorrections", fields: [originalReadingId], references: [id], onDelete: Restrict)
+  correctedReading MeterReading @relation("CorrectedReadingCorrections", fields: [correctedReadingId], references: [id], onDelete: Restrict)
+  createdBy User? @relation("ReadingCorrectionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, meterId, createdAt(sort: Desc)])
+  @@index([originalReadingId])
+  @@index([correctedReadingId])
+  @@map("reading_correction_events")
+}
+
+model CalculationBreakdownSnapshot {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  billingPeriodId String  @map("billing_period_id") @db.Uuid
+  invoiceDraftId String?  @map("invoice_draft_id") @db.Uuid
+  runLabel       String?  @map("run_label")
+  exportVersion  Int      @default(1) @map("export_version")
+  checksum       String?
+  breakdownJson  Json     @map("breakdown_json")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  billingPeriod BillingPeriod @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
+  invoiceDraft InvoiceDraft? @relation(fields: [invoiceDraftId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, billingPeriodId, createdAt(sort: Desc)])
+  @@index([invoiceDraftId])
+  @@map("calculation_breakdown_snapshots")
+}
+
+model BillingChangeLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String?  @map("user_id") @db.Uuid
+  sourceModule  String   @map("source_module")
+  action        String
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  reason        String?
+  changeSetJson Json?    @map("change_set_json")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, entityType, entityId])
+  @@map("billing_change_logs")
+}
+
+model AuditLog {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String?   @map("tenant_id") @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  action     String
+  entityType String    @map("entity_type")
+  entityId   String    @map("entity_id")
+  payloadJson Json?    @map("payload_json")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+model ApiKey {
+  id         String       @id @default(uuid()) @db.Uuid
+  tenantId   String       @map("tenant_id") @db.Uuid
+  name       String
+  keyPrefix  String       @map("key_prefix")
+  keyHash    String       @map("key_hash")
+  status     ApiKeyStatus @default(active)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([keyPrefix])
+  @@index([tenantId, status])
+  @@map("api_keys")
+}

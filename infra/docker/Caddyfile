@@ -1,0 +1,13 @@
+# Replace meteria.example.com with your server domain.
+meteria.example.com {
+  encode gzip
+
+  @api path /api/* /health
+  handle @api {
+    reverse_proxy api:4000
+  }
+
+  handle {
+    reverse_proxy web:3000
+  }
+}

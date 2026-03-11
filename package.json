@@ -1,0 +1,29 @@
+{
+  "name": "meteria",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web,worker -c cyan,green,magenta \"npm run dev -w @meteria/api\" \"npm run dev -w @meteria/web\" \"npm run dev -w @meteria/worker\"",
+    "build": "npm run build -ws --if-present",
+    "start": "concurrently -k -n api,web,worker -c cyan,green,magenta \"npm run start -w @meteria/api\" \"npm run start -w @meteria/web\" \"npm run start -w @meteria/worker\"",
+    "lint": "npm run lint -ws --if-present",
+    "typecheck": "npm run typecheck -ws --if-present",
+    "db:generate": "npm run db:generate -w @meteria/db",
+    "db:migrate": "npm run db:migrate -w @meteria/db",
+    "db:seed": "npm run db:seed -w @meteria/db",
+    "db:reset": "npm run db:reset -w @meteria/db"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=20.11"
+  }
+}

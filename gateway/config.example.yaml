@@ -1,0 +1,54 @@
+meteria:
+  base_url: "http://localhost:4000"
+  ingestion_path: "/api/v1/ingestion/readings"
+  gateway_serial: "rpi5-lu-001"
+  gateway_token: "REPLACE_WITH_GATEWAY_TOKEN"
+  timeout_seconds: 10
+  batch_size: 200
+  max_retries: 15
+  retry_base_seconds: 5
+  max_backoff_seconds: 300
+
+storage:
+  sqlite_path: "/data/gateway.db"
+
+scheduler:
+  poll_interval_seconds: 10
+  upload_interval_seconds: 8
+  heartbeat_interval_seconds: 30
+  status_host: "0.0.0.0"
+  status_port: 8081
+
+logging:
+  level: "INFO"
+
+adapters:
+  wmbus:
+    enabled: true
+    emit_interval_seconds: 15
+    meters:
+      - meter_external_id: "heat-main-001"
+        unit: "kWh"
+        start_value: 14000
+        step: 12.5
+
+  modbus_tcp:
+    enabled: true
+    poll_every_seconds: 20
+    meters:
+      - meter_external_id: "water-cold-002"
+        unit: "m3"
+        base_value: 880
+        jitter: 0.05
+
+  mqtt:
+    enabled: false
+    broker_host: "127.0.0.1"
+    broker_port: 1883
+    topic: "building/readings"
+    keepalive_seconds: 30
+
+  csv_drop:
+    enabled: true
+    watch_dir: "/data/drop"
+    processed_dir: "/data/processed"
