@@ -81,6 +81,29 @@ npm run dev
 - API: `http://localhost:4000`
 - Web: `http://localhost:3000`
 
+## One-command local runner
+
+If Docker Compose build is slow/unreliable on your machine, use:
+
+```bash
+npm run local:start
+```
+
+This will:
+
+- start a dedicated local Timescale container on `localhost:5434`
+- run Prisma `db push`
+- seed demo data
+- start API (`:4000`), Web (`:3000`), Worker
+
+Useful commands:
+
+```bash
+npm run local:status
+npm run local:logs
+npm run local:stop
+```
+
 ## Docker deployment
 
 ```bash

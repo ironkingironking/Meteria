@@ -15,7 +15,11 @@
     "db:generate": "npm run db:generate -w @meteria/db",
     "db:migrate": "npm run db:migrate -w @meteria/db",
     "db:seed": "npm run db:seed -w @meteria/db",
-    "db:reset": "npm run db:reset -w @meteria/db"
+    "db:reset": "npm run db:reset -w @meteria/db",
+    "local:start": "bash infra/scripts/run-local.sh start",
+    "local:stop": "bash infra/scripts/run-local.sh stop",
+    "local:status": "bash infra/scripts/run-local.sh status",
+    "local:logs": "bash infra/scripts/run-local.sh logs"
   },
   "devDependencies": {
     "@types/node": "^22.13.14",

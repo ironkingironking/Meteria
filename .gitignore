@@ -8,3 +8,4 @@ dist
 coverage
 .prisma
 .DS_Store
+.run-local
