@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@meteria/db": ["../../packages/db/src/index.ts"],
+      "@meteria/types": ["../../packages/types/src/index.ts"],
+      "@meteria/utils": ["../../packages/utils/src/index.ts"],
+      "@meteria/billing-engine": ["../../packages/billing-engine/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}
