@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: meteria-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: meteria
+      POSTGRES_PASSWORD: meteria
+      POSTGRES_DB: meteria
+    ports:
+      - "5432:5432"
+    volumes:
+      - meteria_pg_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: meteria-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://meteria:meteria@postgres:5432/meteria?schema=public
+      DIRECT_DATABASE_URL: postgresql://meteria:meteria@postgres:5432/meteria?schema=public
+      API_PORT: 4000
+      CORS_ORIGIN: http://localhost:3000
+    depends_on:
+      - postgres
+    ports:
+      - "4000:4000"
+    command: >
+      sh -c "npm run db:migrate -w @meteria/db && npm run db:seed -w @meteria/db && npm run start -w @meteria/api"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: meteria-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: meteria-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://meteria:meteria@postgres:5432/meteria?schema=public
+      DIRECT_DATABASE_URL: postgresql://meteria:meteria@postgres:5432/meteria?schema=public
+      WORKER_INTERVAL_MS: 30000
+    depends_on:
+      - postgres
+
+  # Optional reverse proxy for server deployment.
+  # caddy:
+  #   image: caddy:2.8
+  #   container_name: meteria-caddy
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./infra/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   depends_on:
+  #     - web
+  #     - api
+
+volumes:
+  meteria_pg_data:
+  # caddy_data:
+  # caddy_config:
