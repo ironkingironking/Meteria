@@ -1,0 +1,33 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate release build
+        run: |
+          npm ci
+          npm run db:generate
+          npm run build
+
+      - name: Production deploy placeholder
+        run: |
+          echo "TODO: Deploy API/Web/Worker and migrate DB on production host"
+          echo "Gate rollout behind GitHub Environment approvals"

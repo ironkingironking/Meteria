@@ -119,6 +119,14 @@ This starts:
 
 Optional Caddy reverse proxy is available in `docker-compose.yml` and `infra/docker/Caddyfile`.
 
+## CI/CD
+
+- CI quality gate: `.github/workflows/ci.yml`
+- Staging deployment flow: `.github/workflows/staging.yml`
+- Production deployment flow: `.github/workflows/production.yml`
+
+Use GitHub Environments + secrets for stage/prod credentials.
+
 ## Demo credentials
 
 - Tenant slug: `demo-tenant`
@@ -174,6 +182,7 @@ curl -X POST http://localhost:4000/api/v1/ingestion/readings \
 - [API](docs/api.md)
 - [Data model](docs/data-model.md)
 - [Roadmap](docs/roadmap.md)
+- [Onboarding](docs/onboarding.md)
 
 ## Companion gateway
 

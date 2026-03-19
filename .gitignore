@@ -2,10 +2,16 @@ node_modules
 **/node_modules
 .env
 .env.local
+.env.staging
+.env.production
 *.log
 dist
 .next
 coverage
 .prisma
+.vercel
+*.tsbuildinfo
+.venv
+.python-version
 .DS_Store
 .run-local

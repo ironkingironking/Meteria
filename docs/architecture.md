@@ -12,6 +12,20 @@ Meteria is built as a modular monorepo with clear boundaries:
 - `packages/types`: shared domain typing
 - `packages/utils`: shared helpers (CSV, number utils)
 
+## API and domain boundaries
+
+To keep modules replaceable, Meteria follows explicit boundaries:
+
+- API layer (`apps/api/src/modules/*/route.ts`): transport, validation, auth checks
+- Application/domain layer (`packages/billing-engine`, module services): business logic
+- Infrastructure layer (`packages/db`, adapters, docker): persistence/runtime
+
+Critical separation already in place:
+
+- ingestion paths are isolated from dashboard read models
+- billing computation lives in `packages/billing-engine` and is invoked via ports
+- dashboard endpoints consume persisted data without mutating ingestion workflows
+
 ## Multi-tenancy model
 
 Tenant isolation is enforced by:
@@ -65,6 +79,8 @@ The billing package separates calculation from HTTP handlers:
 - immutable calculation snapshot writing
 
 Current implementations are intentionally conservative defaults with explicit TODO markers for later legal rule engines.
+
+Service boundaries are intentionally wired through a composition root (`apps/api/src/modules/billing/service-boundaries.ts`) so regional engines can replace defaults without rewriting route handlers.
 
 This allows later extension for:
 

@@ -12,6 +12,8 @@
     "start": "concurrently -k -n api,web,worker -c cyan,green,magenta \"npm run start -w @meteria/api\" \"npm run start -w @meteria/web\" \"npm run start -w @meteria/worker\"",
     "lint": "npm run lint -ws --if-present",
     "typecheck": "npm run typecheck -ws --if-present",
+    "test": "npm -ws test --if-present",
+    "check": "npm run typecheck && npm run build",
     "db:generate": "npm run db:generate -w @meteria/db",
     "db:migrate": "npm run db:migrate -w @meteria/db",
     "db:seed": "npm run db:seed -w @meteria/db",

@@ -1,0 +1,31 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate build
+        run: |
+          npm ci
+          npm run db:generate
+          npm run build
+
+      - name: Staging deploy placeholder
+        run: |
+          echo "TODO: Push images and run docker compose on staging Hetzner host"
+          echo "Use .env.staging values from GitHub Environments secrets"
