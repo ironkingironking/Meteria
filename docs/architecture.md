@@ -23,6 +23,7 @@ To keep modules replaceable, Meteria follows explicit boundaries:
 Critical separation already in place:
 
 - ingestion paths are isolated from dashboard read models
+- ingestion writes both canonical meter readings and raw event journal rows
 - billing computation lives in `packages/billing-engine` and is invoked via ports
 - dashboard endpoints consume persisted data without mutating ingestion workflows
 
@@ -81,6 +82,8 @@ The billing package separates calculation from HTTP handlers:
 Current implementations are intentionally conservative defaults with explicit TODO markers for later legal rule engines.
 
 Service boundaries are intentionally wired through a composition root (`apps/api/src/modules/billing/service-boundaries.ts`) so regional engines can replace defaults without rewriting route handlers.
+
+Ingestion replay is also isolated through a boundary (`apps/api/src/modules/ingestion/service-boundaries.ts`) so queue-driven reprocessing can be introduced without rewriting API endpoints.
 
 This allows later extension for:
 

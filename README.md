@@ -181,6 +181,7 @@ curl -X POST http://localhost:4000/api/v1/ingestion/readings \
 - [Architecture](docs/architecture.md)
 - [API](docs/api.md)
 - [Data model](docs/data-model.md)
+- [Ingestion flow](docs/ingestion-flow.md)
 - [Roadmap](docs/roadmap.md)
 - [Onboarding](docs/onboarding.md)
 

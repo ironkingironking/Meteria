@@ -40,6 +40,17 @@ Timeseries table with:
 - lifecycle state for billing lineage (`original`, `estimated`, `corrected`, `superseded`)
 - optional supersession link for corrected readings
 
+## RawMeterEvent
+
+Tenant-scoped raw ingestion event journal:
+
+- stores normalized payload snapshots for replay and audit
+- links optional gateway and API key source
+- groups events via `correlation_id`
+- tracks processing state (`accepted`, `rejected`, `error`, `reprocess_requested`)
+- stores error payload for ingestion rejects
+- foundation for future asynchronous replay worker
+
 ## Tariff
 
 - tenant-scoped pricing configuration by meter type

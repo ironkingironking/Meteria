@@ -117,6 +117,13 @@ enum ApiKeyStatus {
   revoked
 }
 
+enum RawEventProcessingStatus {
+  accepted
+  rejected
+  error
+  reprocess_requested
+}
+
 model Tenant {
   id             String          @id @default(uuid()) @db.Uuid
   name           String
@@ -141,6 +148,7 @@ model Tenant {
   readingCorrectionEvents ReadingCorrectionEvent[]
   breakdownSnapshots CalculationBreakdownSnapshot[]
   billingChangeLogs BillingChangeLog[]
+  rawMeterEvents   RawMeterEvent[]
 
   @@map("tenants")
 }
@@ -260,6 +268,7 @@ model Gateway {
   tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   building Building?      @relation(fields: [buildingId], references: [id], onDelete: SetNull)
   readings MeterReading[]
+  rawMeterEvents RawMeterEvent[]
 
   @@unique([tenantId, serialNumber])
   @@index([tenantId, buildingId])
@@ -297,6 +306,33 @@ model MeterReading {
   @@index([supersedesReadingId])
   @@unique([meterId, timestamp, value])
   @@map("meter_readings")
+}
+
+model RawMeterEvent {
+  id               String                   @id @default(uuid()) @db.Uuid
+  tenantId         String                   @map("tenant_id") @db.Uuid
+  gatewayId        String?                  @map("gateway_id") @db.Uuid
+  apiKeyId         String?                  @map("api_key_id") @db.Uuid
+  source           ReadingSource
+  meterExternalId  String?                  @map("meter_external_id")
+  correlationId    String                   @map("correlation_id")
+  payloadJson      Json                     @map("payload_json")
+  processingStatus RawEventProcessingStatus @default(accepted) @map("processing_status")
+  errorJson        Json?                    @map("error_json")
+  meterReadingId   String?                  @map("meter_reading_id") @db.Uuid
+  receivedAt       DateTime                 @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt      DateTime?                @map("processed_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  gateway Gateway? @relation(fields: [gatewayId], references: [id], onDelete: SetNull)
+  apiKey ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, receivedAt(sort: Desc)])
+  @@index([tenantId, correlationId])
+  @@index([tenantId, processingStatus, receivedAt(sort: Desc)])
+  @@index([gatewayId])
+  @@index([apiKeyId])
+  @@map("raw_meter_events")
 }
 
 model Tariff {
@@ -594,6 +630,7 @@ model ApiKey {
   updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rawMeterEvents RawMeterEvent[]
 
   @@unique([keyPrefix])
   @@index([tenantId, status])

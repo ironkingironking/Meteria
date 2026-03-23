@@ -28,6 +28,8 @@ Version prefix: `/api/v1`
 ## Ingestion and readings
 
 - `POST /api/v1/ingestion/readings`
+- `GET /api/v1/ingestion/raw-events`
+- `POST /api/v1/ingestion/raw-events/reprocess`
 - `POST /api/v1/readings/manual`
 - `POST /api/v1/readings/import-csv`
 - `GET /api/v1/readings?meter_id=&from=&to=`
@@ -133,3 +135,40 @@ Version prefix: `/api/v1`
   ]
 }
 ```
+
+## Raw ingestion events
+
+### `GET /api/v1/ingestion/raw-events`
+
+Role: `admin` or `manager`
+
+Query params:
+
+- `limit` (default `100`, max `500`)
+- `from`, `to` (ISO timestamp)
+- `processing_status` (`accepted`, `rejected`, `error`, `reprocess_requested`)
+- `source` (`api`, `gateway`, `manual`, `import`)
+- `gateway_id`
+- `meter_external_id`
+- `correlation_id`
+- `include_payload` (`true|false`)
+
+### `POST /api/v1/ingestion/raw-events/reprocess`
+
+Role: `admin` or `manager`
+
+Payload (one selector is required):
+
+```json
+{
+  "raw_event_ids": ["8f8f3c50-5e0c-4a2f-b6f8-0db7a72cb8f8"],
+  "correlation_id": "2f69f954-96eb-4ce4-8f96-d1f739af5d8f",
+  "reason": "operator replay after meter mapping fix"
+}
+```
+
+Current behavior:
+
+- marks selected events as `reprocess_requested`
+- calls ingestion reprocessing boundary (stub)
+- writes audit log entry
