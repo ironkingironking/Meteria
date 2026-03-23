@@ -1,11 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "@meteria/types": ["../types/src/index.ts"]
-    }
+    "rootDir": "src",
+    "outDir": "dist"
   },
   "include": ["src/**/*.ts"]
 }
