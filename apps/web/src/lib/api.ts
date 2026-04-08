@@ -1,10 +1,16 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "";
+
+// ==============================
+// Token Handling
+// ==============================
 
 export const getToken = (): string | null => {
   if (typeof window === "undefined") {
     return null;
   }
-
   return window.localStorage.getItem("meteria_token");
 };
 
@@ -20,8 +26,16 @@ export const clearToken = (): void => {
   }
 };
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+// ==============================
+// API Fetch Wrapper
+// ==============================
+
+export async function apiFetch<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T> {
   const token = getToken();
+
   const headers = new Headers(init?.headers || {});
   headers.set("content-type", "application/json");
 
@@ -29,22 +43,29 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     headers.set("authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const url = `${API_BASE_URL}${path}`;
+
+  const response = await fetch(url, {
     ...init,
     headers,
     cache: "no-store"
   });
 
+  // Debug optional (kannst du später entfernen)
+  // console.log("API CALL:", url, response.status);
+
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
+
     try {
-      const body = (await response.json()) as { error?: string };
-      if (body.error) {
-        message = body.error;
+      const body = (await response.json()) as { error?: string; message?: string };
+      if (body.error || body.message) {
+        message = body.error || body.message!;
       }
     } catch {
-      // ignored
+      // Falls keine JSON-Response → ignorieren
     }
+
     throw new Error(message);
   }
 

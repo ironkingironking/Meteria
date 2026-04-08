@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: meteria
       POSTGRES_DB: meteria
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - meteria_pg_data:/var/lib/postgresql/data
 
@@ -24,7 +24,7 @@ services:
       DATABASE_URL: postgresql://meteria:meteria@postgres:5432/meteria?schema=public
       DIRECT_DATABASE_URL: postgresql://meteria:meteria@postgres:5432/meteria?schema=public
       API_PORT: 4000
-      CORS_ORIGIN: http://localhost:3000
+      CORS_ORIGIN: ${CORS_ORIGIN}
     depends_on:
       - postgres
     ports:
@@ -41,11 +41,12 @@ services:
     env_file:
       - .env
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
     depends_on:
       - api
     ports:
-      - "3000:3000"
+      - "3001:3000"
 
   worker:
     build:
