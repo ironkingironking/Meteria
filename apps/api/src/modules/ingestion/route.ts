@@ -136,6 +136,7 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
       }> = [];
 
       const rawEventData: Array<{
+      const rawEventData: Array<{
         tenantId: string;
         gatewayId: string | null;
         apiKeyId: string | null;
@@ -144,7 +145,7 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         correlationId: string;
         payloadJson: Prisma.InputJsonValue;
         processingStatus: "accepted" | "rejected";
-        errorJson?: Prisma.InputJsonValue;
+        errorJson?: Prisma.InputJsonValue | typeof Prisma.JsonNull;
       }> = [];
 
       const errors: Array<{ index: number; meter_external_id: string; message: string }> = [];

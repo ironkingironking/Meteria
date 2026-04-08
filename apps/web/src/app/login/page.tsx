@@ -20,7 +20,7 @@ export default function LoginPage() {
     const tenantSlug = String(form.get("tenant_slug") || "");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+      const response = await fetch("http://162.55.94.126:4000/api/v1/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
