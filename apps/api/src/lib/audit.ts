@@ -1,4 +1,42 @@
-import { prisma } from "@meteria/db";
+import { Prisma, prisma } from "@meteria/db";
+
+const toPrismaJsonNestedValue = (value: unknown): Prisma.InputJsonValue | null => {
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => toPrismaJsonNestedValue(item)) as Prisma.InputJsonArray;
+  }
+
+  if (typeof value === "object") {
+    const result: Record<string, Prisma.InputJsonValue | null> = {};
+    for (const [key, entryValue] of Object.entries(value)) {
+      if (entryValue !== undefined) {
+        result[key] = toPrismaJsonNestedValue(entryValue);
+      }
+    }
+    return result;
+  }
+
+  return String(value);
+};
+
+const toPrismaJsonValue = (value: unknown): Prisma.InputJsonValue => {
+  if (value === null) {
+    throw new Error("Top-level null JSON values must be handled with Prisma.JsonNull");
+  }
+
+  return toPrismaJsonNestedValue(value) as Prisma.InputJsonValue;
+};
 
 interface AuditPayload {
   tenantId?: string | null;
@@ -24,7 +62,8 @@ export const writeAuditLog = async ({
       action,
       entityType,
       entityId,
-      payloadJson: payload ? (payload as object) : undefined
+      payloadJson:
+        payload === null ? Prisma.JsonNull : payload !== undefined ? toPrismaJsonValue(payload) : undefined
     }
   });
 };
@@ -50,7 +89,7 @@ export const writeBillingChangeLog = async ({
   reason,
   changeSet
 }: BillingChangePayload): Promise<void> => {
-  await (prisma as any).billingChangeLog.create({
+  await prisma.billingChangeLog.create({
     data: {
       tenantId,
       userId,
@@ -59,7 +98,8 @@ export const writeBillingChangeLog = async ({
       entityType,
       entityId,
       reason,
-      changeSetJson: changeSet ? (changeSet as object) : undefined
+      changeSetJson:
+        changeSet === null ? Prisma.JsonNull : changeSet !== undefined ? toPrismaJsonValue(changeSet) : undefined
     }
   });
 };
