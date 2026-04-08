@@ -1,15 +1,29 @@
 import { randomUUID } from "node:crypto";
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { prisma } from "@meteria/db";
+import { Prisma, prisma } from "@meteria/db";
 import { writeAuditLog } from "../../lib/audit";
-import { MAX_INGESTION_BATCH_SIZE, parseIngestionPayload, validateGatewaySerialMatch } from "./processing";
+import {
+  MAX_INGESTION_BATCH_SIZE,
+  parseIngestionPayload,
+  type NormalizedReading,
+  validateGatewaySerialMatch
+} from "./processing";
 import { buildRawEventReprocessingPort } from "./service-boundaries";
 
 const INGESTION_INSERT_CHUNK_SIZE = 500;
 const RAW_EVENT_INSERT_CHUNK_SIZE = 1000;
 const MAX_INGESTION_AGE_DAYS = 365 * 5;
 const MAX_INGESTION_FUTURE_MINUTES = 15;
+
+const serializeReadingPayload = (entry: NormalizedReading): Prisma.InputJsonObject => ({
+  meter_external_id: entry.meter_external_id,
+  timestamp: entry.timestamp.toISOString(),
+  value: entry.value,
+  ...(entry.raw_value !== undefined ? { raw_value: entry.raw_value } : {}),
+  unit: entry.unit,
+  quality_flag: entry.quality_flag
+});
 
 const rawEventsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(100),
@@ -128,9 +142,9 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         source: "gateway" | "api";
         meterExternalId: string | null;
         correlationId: string;
-        payloadJson: unknown;
+        payloadJson: Prisma.InputJsonValue;
         processingStatus: "accepted" | "rejected";
-        errorJson?: unknown;
+        errorJson?: Prisma.InputJsonValue;
       }> = [];
 
       const errors: Array<{ index: number; meter_external_id: string; message: string }> = [];
@@ -147,6 +161,8 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         if (errorMessage) {
+          const payloadJson = serializeReadingPayload(entry);
+
           errors.push({
             index,
             meter_external_id: entry.meter_external_id,
@@ -160,7 +176,7 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
             source: gatewayId ? "gateway" : "api",
             meterExternalId: entry.meter_external_id,
             correlationId,
-            payloadJson: entry,
+            payloadJson,
             processingStatus: "rejected",
             errorJson: { message: errorMessage }
           });
@@ -180,6 +196,8 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
           source: gatewayId ? "gateway" : "api"
         });
 
+        const payloadJson = serializeReadingPayload(entry);
+
         rawEventData.push({
           tenantId,
           gatewayId,
@@ -187,7 +205,7 @@ const ingestionRoutes: FastifyPluginAsync = async (fastify) => {
           source: gatewayId ? "gateway" : "api",
           meterExternalId: entry.meter_external_id,
           correlationId,
-          payloadJson: entry,
+          payloadJson,
           processingStatus: "accepted"
         });
       });
